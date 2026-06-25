@@ -1,5 +1,17 @@
 # Rust-QR-Code-Analyzer
 
+## Image Processing
+
+### Workflow:
+
+1. Take a raw frame from camera stream, results in raw camera bytes buffer
+2. Decode it into a RGB image object, which internally it is a buffer of RGB bytes, plus width/height/type info
+   1. Pixels are now red, green, blue bytes
+3. Treat the Rgb8 image as a general image by wrapping it in a Dynamic Image enum
+4. Convert Rgb8 general image to grayscale/L8
+5. Encode and save it as a PNG
+6. 
+
 ## Different Color Types and Their Uses:
 
 ### Main Color Types:

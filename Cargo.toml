@@ -7,3 +7,4 @@ edition = "2024"
 # Your crates go here
 image = "0.25"
 nokhwa = {version="0.10", features=["input-native"]} # input-native = use the OS's native camera API
+rqrr="0.10.1"

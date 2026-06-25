@@ -6,6 +6,8 @@ use nokhwa::{ // using a crate, and bringing these names into scope, so I can us
     utils::{ CameraIndex, RequestedFormat, RequestedFormatType }, // importing Certain stuff inside nokhwa::utils
 };
 
+use image::{ DynamicImage };
+
 fn main() {
     let mut user_input: String = String::new();
 
@@ -39,7 +41,6 @@ fn main() {
             println!("Thank you for using this service. Good bye.");
             break;
         } else if command == "c" {
-
             if !auto_exposure {
                 println!("Need to conduct auto-exposure, please wait.");
                 for _ in 0..30 {
@@ -47,7 +48,7 @@ fn main() {
                 }
                 auto_exposure = true;
             }
-            
+
             let frame = camera.frame().expect("Failed to capture frame."); // gives the next image frame
             println!("Captured image, len is {}.", frame.buffer().len()); // size of camera's original data
 
@@ -75,6 +76,26 @@ fn main() {
                 .expect("Failed to save png"); // color type is 3 bytes per pixel, encode as PNG
 
             println!("Saved image properly, resolution: {}", frame.resolution());
+
+            let gray_img = DynamicImage::ImageRgb8(decoded_frame).to_luma8(); // take the RGB image, wrap it as a DynamicImage, convert it to 8-bit grayscale, and store it in gray_img (converting to brightness pixels)
+            // DynamicImage::ImageRgb8 means wrap the RGB image inside a general image enum, and then convert to brightness
+
+            gray_img.save("gray.png").expect("Failed to save grayscale image.");
+            
+
+            let mut prepared = rqrr::PreparedImage::prepare(gray_img); // Give rqrr the grayscale image and it'll finish preparing it for QR searching
+
+            let grids = prepared.detect_grids(); // Search the image for QR-code-shaped square patterns
+
+            println!("Scanning grids.");
+            println!("Number of QR grids found: {}", grids.len());
+
+            for grid in grids {
+                // For each QR-looking thing in the image, there could be many QR codes
+                let (_meta, content) = grid.decode().expect("Failed to decode QR."); // Try to decode the QR grid into actual data, returning a result; (_meta, content) means to take the returned pair, put the first item in _meta (means that we know it exists but probably won't use it, don't warn me) and second item in content (decoded QR text)
+
+                println!("QR Content: {}", content);
+            }
         }
     }
 }
