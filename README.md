@@ -5,14 +5,11 @@
 ### Workflow:
 
 1. Take a raw frame from camera stream, results in raw camera bytes buffer
-2. Decode it into a RGB image object, which internally it is a buffer of RGB bytes, plus width/height/type info
-   1. Pixels are now red, green, blue bytes
-3. Treat the Rgb8 image as a general image by wrapping it in a Dynamic Image enum
-4. Convert Rgb8 general image to grayscale/Luma8
-5. Convert general image to zedbar::Image, containing data, width, and height
-6. Initialize Scanner with preferenced config
-7. Scan QR code
-8. Return data of first QR code detected
+2. Decode it into a Luma object, which internally it is a buffer of brightness bytes, plus width/height/type info
+3. Convert general image to zedbar::Image, containing data, width, and height
+4. Initialize Scanner with preferenced config
+5. Scan QR code
+6. Return data of first QR code detected
 
 ## General QR Detection Algorithm Steps:
 

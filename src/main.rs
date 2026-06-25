@@ -1,12 +1,7 @@
 use std::{ io };
 
-use nokhwa::{ // using a crate, and bringing these names into scope, so I can use Camera instead of nokhwa::Camera
-    Camera,
-    pixel_format::RgbFormat,
-    utils::{ CameraIndex, RequestedFormat, RequestedFormatType }, // importing Certain stuff inside nokhwa::utils
+use nokhwa::{ Camera, pixel_format::{LumaFormat}, utils::{ CameraIndex, RequestedFormat, RequestedFormatType }
 };
-
-use image::{ DynamicImage };
 
 use zedbar::config::*; // Bring everything public from zedbar::config into scope
 use zedbar::{ DecoderConfig, Scanner };
@@ -16,7 +11,7 @@ fn main() {
 
     let index = CameraIndex::Index(0); // CameraIndex is a type, and so using CameraIndex::Index(0) means ot use camera number 0
 
-    let requested = RequestedFormat::new::<RgbFormat>(
+    let requested = RequestedFormat::new::<LumaFormat>(
         // creates a camera format request, uses turbofish syntax telling rust call new and use RgbFormat as the format type with highest frame rate
         RequestedFormatType::AbsoluteHighestFrameRate
     );
@@ -25,6 +20,16 @@ fn main() {
         .expect("Failed to create camera."); // returns Result, if Camera::new worked give me Camera else give me error message
 
     camera.open_stream().expect("Failed to open camera stream."); // starts the camera, changes internal state; use expect because it returns a Result
+
+    warm_up_camera(&mut camera); // removing unnecessary flame flushing from hot path because camera acquisition latency dominates QR decode latency
+
+    let config = DecoderConfig::new() // settings object
+            .enable(QrCode) // tell scanner to look for QR codes
+            .test_inverted(true) // if normal scan finds nothing, try scanning an inverted image (white squares on black background)
+            .retry_undecoded_regions(true) // If zedbar sees QR finder patterns but can't decode the QR, auto crop/upscale the sus regions and try again
+            .scan_density(2, 2); // density control, about scanning every x rows and every y columns
+
+    let mut scanner = Scanner::with_config(config);
 
     loop {
         // loop can return a value to a var; runs ≥ 1
@@ -42,37 +47,22 @@ fn main() {
             println!("Thank you for using this service. Good bye.");
             break;
         } else if command == "c" {
-            println!("The data in the QR code is: {}", detect_qr_code_loop(&mut camera));
+            println!("The data in the QR code is: {}", fallback_detect_qr_code_loop(&mut camera, &mut scanner));
         }
     }
 }
 
-fn detect_qr_code_loop(camera: &mut Camera) -> String {
+fn fallback_detect_qr_code_loop(camera: &mut Camera, scanner: &mut Scanner) -> String {
     loop {
-        for _ in 0..30 {
-            let _ = camera.frame();
-        }
-
         let frame = camera.frame().expect("Failed to capture frame.");
-        let decoded_frame = frame.decode_image::<RgbFormat>().expect("Failed to decode frame.");
+        let decoded_frame = frame.decode_image::<LumaFormat>().expect("Failed to decode frame.");
 
         let width = frame.resolution().width();
         let height = frame.resolution().height();
 
-        let gray_img = DynamicImage::ImageRgb8(decoded_frame).to_luma8();
-
         let mut img = zedbar::Image
-            ::from_gray(&gray_img, width, height)
+            ::from_gray(&decoded_frame, width, height)
             .expect("Failed to create zedbar image.");
-
-        let config = DecoderConfig::new() // settings object
-            .enable(QrCode) // tell scanner to look for QR codes
-            .enable(Ean13) // Also look for EAN-13 barcodes (common on retail items)
-            .test_inverted(true) // if normal scan finds nothing, try scanning an inverted image (white squares on black background)
-            .retry_undecoded_regions(true) // If zedbar sees QR finder patterns but can't decode the QR, auto crop/upscale the sus regions and try again
-            .scan_density(2, 2); // density control, about scanning every x rows and every y columns
-
-        let mut scanner = Scanner::with_config(config);
 
         let symbols = scanner.scan(&mut img);
 
@@ -82,5 +72,11 @@ fn detect_qr_code_loop(camera: &mut Camera) -> String {
                 return data.to_string();
             }
         }
+    }
+}
+
+fn warm_up_camera(camera: &mut Camera) {
+    for _ in 0..5 {
+        let _ = camera.frame();
     }
 }
