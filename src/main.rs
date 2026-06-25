@@ -7,7 +7,9 @@ use nokhwa::{ // using a crate, and bringing these names into scope, so I can us
 };
 
 use image::{ DynamicImage };
-use zedbar::{ Scanner };
+
+use zedbar::config::*; // Bring everything public from zedbar::config into scope
+use zedbar::{ DecoderConfig, Scanner };
 
 fn main() {
     let mut user_input: String = String::new();
@@ -63,7 +65,14 @@ fn detect_qr_code_loop(camera: &mut Camera) -> String {
             ::from_gray(&gray_img, width, height)
             .expect("Failed to create zedbar image.");
 
-        let mut scanner = Scanner::new();
+        let config = DecoderConfig::new() // settings object
+            .enable(QrCode) // tell scanner to look for QR codes
+            .enable(Ean13) // Also look for EAN-13 barcodes (common on retail items)
+            .test_inverted(true) // if normal scan finds nothing, try scanning an inverted image (white squares on black background)
+            .retry_undecoded_regions(true) // If zedbar sees QR finder patterns but can't decode the QR, auto crop/upscale the sus regions and try again
+            .scan_density(2, 2); // density control, about scanning every x rows and every y columns
+
+        let mut scanner = Scanner::with_config(config);
 
         let symbols = scanner.scan(&mut img);
 
