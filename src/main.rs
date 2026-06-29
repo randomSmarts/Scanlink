@@ -17,7 +17,7 @@ static WIFI_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     // || {} is a closure that stores the code that runs once (an anonymous
     // function of sorts)
     Regex::new(
-        r"^WIFI:T:(?P<wifi_type>[^;]+);S:(?P<wifi_ssid>[^;]+);P:(?P<wifi_pwd>[^;]*);.*$" // + means ≥1 chars, * means ≥1 chars
+        r"^WIFI:T:(?P<wifi_type>[^;]+);S:(?P<wifi_ssid>[^;]+);(?:P:(?P<wifi_pwd>[^;]*);)?.*$" // + means ≥1 chars, * means ≥0 chars
     ).unwrap()
 }); // poisoning is where when you create a shared resource, it runs some code inside LazyLock::new the first time it is accessed; if that code panics, then it poisons the the lock and any future attempt to use the data in the lock will panic and crash the program
 
@@ -32,7 +32,7 @@ fn setup_camera(index: CameraIndex, requested: RequestedFormat) -> Camera {
 fn main() {
     let mut user_input: String = String::new();
 
-    let index = CameraIndex::Index(0); // CameraIndex is a type, and so using CameraIndex::Index(0) means ot use camera number 0
+    let index = CameraIndex::Index(2); // CameraIndex is a type, and so using CameraIndex::Index(0) means ot use camera number 0
 
     let requested = RequestedFormat::new::<LumaFormat>(
         // creates a camera format request, uses turbofish syntax telling rust
@@ -67,6 +67,7 @@ fn main() {
             break;
         } else if command == "c" {
             let data_result = fallback_detect_qr_code_loop(&mut camera, &mut scanner);
+            println!("Data detected: {:?}", data_result);
             let connector = LinuxNetworkManagerConnector;
             let result = connect_to_wifi_from_qr_payloads(&data_result, &connector);
             if result.is_ok() {
@@ -103,6 +104,7 @@ fn fallback_detect_qr_code_loop(camera: &mut Camera, scanner: &mut Scanner) -> V
             }
         }
     }
+    println!("QR Code Data: {:?}", qr_code_data);
     qr_code_data
 }
 
