@@ -32,7 +32,7 @@ fn setup_camera(index: CameraIndex, requested: RequestedFormat) -> Camera {
 fn main() {
     let mut user_input: String = String::new();
 
-    let index = CameraIndex::Index(2); // CameraIndex is a type, and so using CameraIndex::Index(0) means ot use camera number 0
+    let index = CameraIndex::Index(0); // CameraIndex is a type, and so using CameraIndex::Index(0) means ot use camera number 0
 
     let requested = RequestedFormat::new::<LumaFormat>(
         // creates a camera format request, uses turbofish syntax telling rust
@@ -54,7 +54,7 @@ fn main() {
         // loop can return a value to a var; runs ≥ 1
         user_input.clear();
 
-        println!("Type command: c = capture, q = quit");
+        println!("Type command: p = preview, c = capture, q = quit");
 
         io::stdin()
             .read_line(&mut user_input) // mutable reference to fill in user_input since it's a String buffer
@@ -65,6 +65,8 @@ fn main() {
         if command == "q" {
             println!("Thank you for using this service. Good bye.");
             break;
+        } else if command == "p" {
+            save_camera_preview(&mut camera);
         } else if command == "c" {
             let data_result = fallback_detect_qr_code_loop(&mut camera, &mut scanner);
             println!("Data detected: {:?}", data_result);
@@ -78,6 +80,31 @@ fn main() {
             // println!("The data in the QR code is: {}",
             // fallback_detect_qr_code_loop(&mut camera, &mut scanner));
         }
+    }
+}
+
+fn save_camera_preview(camera: &mut Camera) {
+    let output_path = "camera_preview.png";
+
+    for _ in 0..10 {
+        let _ = camera.frame(); // getting rid of buffers
+    }
+    let frame = camera.frame().expect("Failed to capture preview frame: {:?}");
+
+    let width = frame.resolution().width();
+    let height = frame.resolution().height();
+
+    let decoded_frame = match frame.decode_image::<LumaFormat>() {
+        Ok(decoded_frame) => decoded_frame,
+        Err(error) => {
+            println!("Failed to decode preview frame: {:?}", error);
+            return;
+        }
+    };
+
+    match decoded_frame.save(output_path) {
+        Ok(()) => println!("Saved camera preview to {} ({}x{}).", output_path, width, height),
+        Err(error) => println!("Failed to save preview frame: {:?}", error),
     }
 }
 
@@ -226,23 +253,55 @@ impl WifiConnector for LinuxNetworkManagerConnector {
                 let password = credentials.password
                     .as_ref() // we do .as_ref() for all because credentials, where the password comes from, is borrowed
                     .ok_or(WifiConnectError::MissingPassword)?;
-                let output = Command::new("nmcli")
+
+                let delete_existing = Command::new("nmcli")
                     .args([
-                        "device",
+                        "connection",
+                        "delete",
+                        credentials.ssid.as_str(),
+                    ])
+                    .output();
+
+                let _ = delete_existing; // ignore delete failure because profile may not exist yet
+                let add_output = Command::new("nmcli")
+                    .args([
+                        "connection",
+                        "add",
+                        "type",
                         "wifi",
-                        "connect",
+                        "ifname",
+                        "*",
+                        "con-name",
                         credentials.ssid.as_str(), // as_str() because that's how the terminal likes it
-                        "password",
+                        "ssid",
+                        credentials.ssid.as_str(),
+                        "wifi-sec.key-mgmt",
+                        "wpa-psk",
+                        "wifi-sec.psk",
                         password.as_str(),
                     ])
                     .output()?; // ? used because it returns Result, where if the command failed then it returns the error immediately
 
-                if output.status.success() {
+                if !add_output.status.success() {
+                    return Err(WifiConnectError::CommandFailed(
+                        String::from_utf8_lossy(&add_output.stderr).to_string(),
+                    ));
+                }
+
+                let up_output = Command::new("nmcli")
+                    .args([
+                        "connection",
+                        "up",
+                        credentials.ssid.as_str(),
+                    ])
+                    .output()?;
+
+                if up_output.status.success() {
                     Ok(())
                 } else {
                     return Err(
                         WifiConnectError::CommandFailed(
-                            String::from_utf8_lossy(&output.stderr).to_string() // output.stderr is raw bytes (Vec<u8>) so this says to try to interpret these bytes as UTF-8 text and if some fail then replace them with a safe replacement character, returning Cow<str> and finally an owned String
+                            String::from_utf8_lossy(&up_output.stderr).to_string() // output.stderr is raw bytes (Vec<u8>) so this says to try to interpret these bytes as UTF-8 text and if some fail then replace them with a safe replacement character, returning Cow<str> and finally an owned String
                         )
                     );
                 }
