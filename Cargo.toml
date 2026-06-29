@@ -8,3 +8,4 @@ edition = "2024"
 image = "0.25"
 nokhwa = {version="0.10", features=["input-native"]} # input-native = use the OS's native camera API
 zedbar = "0.4.1"
+regex = "1"
