@@ -21,6 +21,14 @@ static WIFI_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     ).unwrap()
 }); // poisoning is where when you create a shared resource, it runs some code inside LazyLock::new the first time it is accessed; if that code panics, then it poisons the the lock and any future attempt to use the data in the lock will panic and crash the program
 
+fn setup_camera(index: CameraIndex, requested: RequestedFormat) -> Camera {
+    let mut camera = Camera::new(index, requested).expect("Failed to create camera"); // mut because opening/using the camera changes its internal state
+    camera.open_stream().expect("Failed to open camera stream."); // starts the camera, changes internal state; use expect because it returns a Result
+
+    warm_up_camera(&mut camera); // removing unnecessary flame flushing from hot path because camera acquisition latency dominates QR decode latency
+    camera
+}
+
 fn main() {
     let mut user_input: String = String::new();
 
@@ -32,12 +40,7 @@ fn main() {
         RequestedFormatType::AbsoluteHighestFrameRate
     );
 
-    let mut camera = Camera::new(index, requested) // mut because opening/using the camera changes its internal state
-        .expect("Failed to create camera."); // returns Result, if Camera::new worked give me Camera else give me error message
-
-    camera.open_stream().expect("Failed to open camera stream."); // starts the camera, changes internal state; use expect because it returns a Result
-
-    warm_up_camera(&mut camera); // removing unnecessary flame flushing from hot path because camera acquisition latency dominates QR decode latency
+    let mut camera = setup_camera(index, requested);
 
     let config = DecoderConfig::new() // settings object
         .enable(QrCode) // tell scanner to look for QR codes
@@ -96,6 +99,7 @@ fn fallback_detect_qr_code_loop(camera: &mut Camera, scanner: &mut Scanner) -> V
             let data = symbol.data_string().unwrap_or("");
             if !data.is_empty() {
                 qr_code_data.push(data.to_string());
+                println!("Data found: {}", data);
             }
         }
     }
@@ -167,6 +171,8 @@ fn parse_wifi_credentials(qr_payloads: &[String]) -> Option<WifiCredentials> {
             };
 
             return Some(WifiCredentials { security_type, ssid, password });
+        } else {
+            println!("Regex did not match.");
         }
     }
     None
@@ -205,11 +211,11 @@ struct LinuxNetworkManagerConnector;
 // interface_name: String,
 // unit struct, needed when you only need a type to attach behavior to
 
-impl LinuxNetworkManagerConnector {
-    fn new(interface_name: String) -> Self {
-        LinuxNetworkManagerConnector {}
-    }
-}
+// impl LinuxNetworkManagerConnector {
+//     fn new(interface_name: String) -> Self {
+//         LinuxNetworkManagerConnector {}
+//     }
+// }
 
 impl WifiConnector for LinuxNetworkManagerConnector {
     fn connect(&self, credentials: &WifiCredentials) -> Result<(), WifiConnectError> {
