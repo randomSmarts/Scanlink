@@ -10,6 +10,14 @@ homepage = "https://github.com/randomSmarts/Scanlink"
 documentation = "https://docs.rs/scanlink"
 keywords = ["qr", "wifi", "networkmanager", "onboarding", "connectivity"]
 categories = ["network-programming", "command-line-utilities"]
+exclude = [
+  ".vscode/",
+  "Cargo.toml.orig",
+  "camera_preview.png",
+  "rust-qr-venv/",
+  "target/",
+  "Cargo.lock"
+]
 
 [features]
 default = []
