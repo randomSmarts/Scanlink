@@ -20,7 +20,5 @@ target
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-test.png
-gray.png
 backtrace.txt
 camera_preview.png

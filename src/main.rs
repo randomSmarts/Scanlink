@@ -1,4 +1,5 @@
-use std::{ io };
+use core::error;
+use std::{ io, process::Output };
 
 use regex::Regex;
 use std::sync::LazyLock; // from Rust standard library; lets you create something globally, only initializing it the first time it is used
@@ -72,10 +73,14 @@ fn main() {
             println!("Data detected: {:?}", data_result);
             let connector = LinuxNetworkManagerConnector;
             let result = connect_to_wifi_from_qr_payloads(&data_result, &connector);
-            if result.is_ok() {
-                println!("Connected to Wi-Fi successfully.");
-            } else {
-                println!("Failed to connect to Wi-Fi: {:?}", result.err());
+
+            match result {
+                Ok(()) => {
+                    println!("Connected to Wi-Fi successfully.");
+                }
+                Err(error) => {
+                    println!("Failed to connect to Wi-Fi: {:?}", error); // prints real error directly
+                }
             }
             // println!("The data in the QR code is: {}",
             // fallback_detect_qr_code_loop(&mut camera, &mut scanner));
@@ -89,7 +94,13 @@ fn save_camera_preview(camera: &mut Camera) {
     for _ in 0..10 {
         let _ = camera.frame(); // getting rid of buffers
     }
-    let frame = camera.frame().expect("Failed to capture preview frame: {:?}");
+    let frame = match camera.frame() {
+        Ok(frame) => frame,
+        Err(error) => {
+            println!("Failed to capture preview frame: {:?}", error);
+            return;
+        }
+    };
 
     let width = frame.resolution().width();
     let height = frame.resolution().height();
@@ -246,6 +257,24 @@ struct LinuxNetworkManagerConnector;
 //     }
 // }
 
+impl LinuxNetworkManagerConnector {
+    // no self is needed because it belongs to the type, not to the instance
+    fn check_output_status(output: Output) -> Result<(), WifiConnectError> {
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(
+                WifiConnectError::CommandFailed(String::from_utf8_lossy(&output.stderr).to_string())
+            )
+        }
+    }
+    fn delete_network_profile(&self, credentials: &WifiCredentials) {
+        let _ = Command::new("nmcli") // deletes old broken profiles with the corresponding SSID name, don't care about errors
+            .args(["connection", "delete", credentials.ssid.as_str()])
+            .output();
+    }
+}
+
 impl WifiConnector for LinuxNetworkManagerConnector {
     fn connect(&self, credentials: &WifiCredentials) -> Result<(), WifiConnectError> {
         match credentials.security_type {
@@ -254,10 +283,9 @@ impl WifiConnector for LinuxNetworkManagerConnector {
                     .as_ref() // we do .as_ref() for all because credentials, where the password comes from, is borrowed
                     .ok_or(WifiConnectError::MissingPassword)?;
 
-                let _ = Command::new("nmcli") // deletes old broken profiles with the corresponding SSID name, don't care about errors
-                    .args(["connection", "delete", credentials.ssid.as_str()])
-                    .output();
+                self.delete_network_profile(credentials); // deletes old broken profiles with the corresponding SSID name, don't care about errors
 
+                // needed b/c what type of security management needed to use isn't stated w/reg. nmcli command
                 let add_output = Command::new("nmcli") // create a proper WPA profile
                     .args([
                         "connection",
@@ -277,33 +305,17 @@ impl WifiConnector for LinuxNetworkManagerConnector {
                     ])
                     .output()?; // ? used because it returns Result, where if the command failed then it returns the error immediately
 
-                if !add_output.status.success() {
-                    return Err(
-                        WifiConnectError::CommandFailed(
-                            String::from_utf8_lossy(&add_output.stderr).to_string()
-                        )
-                    );
-                }
+                LinuxNetworkManagerConnector::check_output_status(add_output)?; // if returns Ok(()) continue, else return immediately the error from the current function
 
                 let up_output = Command::new("nmcli") // connect the profile just created (activating it)
                     .args(["connection", "up", credentials.ssid.as_str()])
                     .output()?;
 
-                if up_output.status.success() {
-                    Ok(())
-                } else {
-                    return Err(
-                        WifiConnectError::CommandFailed(
-                            String::from_utf8_lossy(&up_output.stderr).to_string() // output.stderr is raw bytes (Vec<u8>) so this says to try to interpret these bytes as UTF-8 text and if some fail then replace them with a safe replacement character, returning Cow<str> and finally an owned String
-                        )
-                    );
-                }
+                LinuxNetworkManagerConnector::check_output_status(up_output)
             }
             WifiSecurity::Wep => { Err(WifiConnectError::UnsupportedSecurity) }
             WifiSecurity::Open => {
-                let _ = Command::new("nmcli")
-                    .args(["connection", "delete", credentials.ssid.as_str()])
-                    .output();
+                self.delete_network_profile(credentials);
 
                 let add_output = Command::new("nmcli")
                     .args([
@@ -320,27 +332,13 @@ impl WifiConnector for LinuxNetworkManagerConnector {
                     ])
                     .output()?;
 
-                if !add_output.status.success() {
-                    return Err(
-                        WifiConnectError::CommandFailed(
-                            String::from_utf8_lossy(&add_output.stderr).to_string()
-                        )
-                    );
-                }
+                LinuxNetworkManagerConnector::check_output_status(add_output)?;
 
                 let up_output = Command::new("nmcli")
                     .args(["connection", "up", credentials.ssid.as_str()])
                     .output()?;
 
-                if up_output.status.success() {
-                    Ok(())
-                } else {
-                    Err(
-                        WifiConnectError::CommandFailed(
-                            String::from_utf8_lossy(&up_output.stderr).to_string()
-                        )
-                    )
-                }
+                LinuxNetworkManagerConnector::check_output_status(up_output)
             }
         }
     }
