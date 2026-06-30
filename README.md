@@ -1,5 +1,16 @@
 # Rust-QR-Code-Analyzer
 
+## Citation
+
+If you use Scanlink in a project, please cite:
+
+Aarsh Mittal. Scanlink. Version 0.1.0. https://github.com/randomSmarts/Scanlink
+
+## Relevant Commands
+
+1. `cargo run --example scan_and_connect --features "qr linux-network-manager"`
+   1. Default = []
+
 ## Image Processing
 
 ### Workflow:

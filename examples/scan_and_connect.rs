@@ -1,7 +1,3 @@
-mod camera;
-mod qr_scanner;
-mod wifi;
-
 use std::io;
 
 use nokhwa::{
@@ -9,10 +5,14 @@ use nokhwa::{
     utils::{ CameraIndex, RequestedFormat, RequestedFormatType },
 };
 
-use camera::{ save_camera_preview, setup_camera };
-use qr_scanner::{ build_qr_scanner, fallback_detect_qr_code_loop };
-use wifi::{ connect_to_wifi_from_qr_payloads, LinuxNetworkManagerConnector };
-
+use scanlink::{
+    build_qr_scanner,
+    connect_to_wifi_from_qr_payloads,
+    save_camera_preview,
+    scan_qr_payloads_from_camera,
+    setup_camera,
+    LinuxNetworkManagerConnector,
+};
 fn main() {
     let mut user_input = String::new();
 
@@ -41,12 +41,12 @@ fn main() {
         } else if command == "p" {
             save_camera_preview(&mut camera);
         } else if command == "c" {
-            let data_result = fallback_detect_qr_code_loop(&mut camera, &mut scanner);
+            let qr_payloads = scan_qr_payloads_from_camera(&mut camera, &mut scanner);
 
             println!("QR payload detected.");
 
             let connector = LinuxNetworkManagerConnector;
-            let result = connect_to_wifi_from_qr_payloads(&data_result, &connector);
+            let result = connect_to_wifi_from_qr_payloads(&qr_payloads, &connector);
 
             match result {
                 Ok(()) => {

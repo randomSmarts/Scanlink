@@ -1,11 +1,27 @@
 [package]
-name = "rust-qr-code-analyzer"
+name = "scanlink"
 version = "0.1.0"
 edition = "2024"
+description = "Scan QR payloads and use parsed connection data with pluggable network backends."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/randomSmarts/Scanlink"
+readme = "README.md"
+keywords = ["qr", "wifi", "networkmanager", "onboarding", "connectivity"]
+categories = ["network-programming", "command-line-utilities"]
+
+[features]
+default = []
+
+qr = ["dep:image", "dep:nokhwa", "dep:zedbar"]
+wifi = ["dep:regex"]
+linux-network-manager = ["wifi"]
 
 [dependencies]
-# Your crates go here
-image = "0.25"
-nokhwa = {version="0.10", features=["input-native"]} # input-native = use the OS's native camera API
-zedbar = "0.4.1"
-regex = "1"
+image = { version = "0.25", optional = true }
+nokhwa = { version = "0.10", features = ["input-native"], optional = true } # input-native means the OS natural camera
+zedbar = { version = "0.4.1", optional = true }
+regex = { version = "1", optional = true }
+
+[[example]]
+name = "scan_and_connect"
+required-features = ["qr", "linux-network-manager"]

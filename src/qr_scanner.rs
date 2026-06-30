@@ -13,7 +13,7 @@ pub fn build_qr_scanner() -> Scanner {
     Scanner::with_config(config)
 }
 
-pub fn fallback_detect_qr_code_loop(camera: &mut Camera, scanner: &mut Scanner) -> Vec<String> {
+pub fn scan_qr_payloads_from_camera(camera: &mut Camera, scanner: &mut Scanner) -> Vec<String> {
     let mut qr_code_data: Vec<String> = Vec::new();
     while qr_code_data.is_empty() {
         let frame = camera.frame().expect("Failed to capture frame.");
@@ -32,10 +32,8 @@ pub fn fallback_detect_qr_code_loop(camera: &mut Camera, scanner: &mut Scanner) 
             let data = symbol.data_string().unwrap_or("");
             if !data.is_empty() {
                 qr_code_data.push(data.to_string());
-                println!("Data found: {}", data);
             }
         }
     }
-    println!("QR Code Data: {:?}", qr_code_data);
     qr_code_data
 }

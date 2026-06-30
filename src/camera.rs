@@ -1,7 +1,7 @@
 use nokhwa::{
     Camera,
     pixel_format::{ LumaFormat },
-    utils::{ CameraIndex, RequestedFormat, RequestedFormatType },
+    utils::{ CameraIndex, RequestedFormat },
 };
 
 fn warm_up_camera(camera: &mut Camera) {
