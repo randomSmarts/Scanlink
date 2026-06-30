@@ -6,6 +6,8 @@ description = "Scan QR payloads and use parsed connection data with pluggable ne
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/randomSmarts/Scanlink"
 readme = "README.md"
+homepage = "https://github.com/randomSmarts/Scanlink"
+documentation = "https://docs.rs/scanlink"
 keywords = ["qr", "wifi", "networkmanager", "onboarding", "connectivity"]
 categories = ["network-programming", "command-line-utilities"]
 
@@ -25,3 +27,12 @@ regex = { version = "1", optional = true }
 [[example]]
 name = "scan_and_connect"
 required-features = ["qr", "linux-network-manager"]
+
+exclude = [
+  ".vscode/",
+  "Cargo.toml.orig",
+  "camera_preview.png",
+  "rust-qr-venv/",
+  "target/",
+  "Cargo.lock"
+]
