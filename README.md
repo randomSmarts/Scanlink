@@ -4,7 +4,7 @@
 
 If you use Scanlink in a project, please cite:
 
-Aarsh Mittal. Scanlink. Version 0.1.0. https://github.com/randomSmarts/Scanlink
+Aarsh Mittal. Scanlink. Version 0.1.1. https://github.com/randomSmarts/Scanlink
 
 ## Relevant Commands
 

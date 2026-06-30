@@ -1,6 +1,6 @@
 [package]
 name = "scanlink"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Scan QR payloads and use parsed connection data with pluggable network backends."
 license = "MIT OR Apache-2.0"
